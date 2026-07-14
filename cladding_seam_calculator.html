@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cladding Seam Position Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#eef2f6;
+    --bg-deep:#ffffff;
+    --panel:#ffffff;
+    --panel-2:#e3ebf2;
+    --line:#b7c8d8;
+    --line-soft:#d2dee8;
+    --cyan:#0f6e8c;
+    --cyan-bright:#0a4d63;
+    --amber:#c9691a;
+    --amber-dim:#a8560f;
+    --text:#16232e;
+    --text-dim:#4c6376;
+    --text-faint:#7e93a3;
+    --danger:#c0392b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 15% 8%, rgba(15,110,140,0.04), transparent 40%),
+      var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans','IBM Plex Sans Thai',sans-serif;
+    min-height:100vh;
+    padding:20px 14px 60px;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+
+  /* header / title block styled like a drawing title box */
+  .titleblock{
+    border:1px solid var(--line);
+    background:var(--panel);
+    border-radius:4px;
+    padding:16px 18px;
+    margin-bottom:18px;
+    position:relative;
+    overflow:hidden;
+  }
+  .titleblock::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(15,110,140,0.05) 23px, rgba(15,110,140,0.05) 24px),
+      repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(15,110,140,0.05) 23px, rgba(15,110,140,0.05) 24px);
+    pointer-events:none;
+  }
+  .titleblock-inner{position:relative; z-index:1;}
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    color:var(--cyan);
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  h1{
+    font-size:20px;
+    margin:0 0 4px;
+    font-weight:600;
+    color:var(--text);
+    letter-spacing:.01em;
+  }
+  .sub{
+    font-size:13px;
+    color:var(--text-dim);
+    line-height:1.5;
+  }
+  .drawing-no{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--text-faint);
+    margin-top:10px;
+    display:flex;
+    gap:16px;
+    flex-wrap:wrap;
+  }
+
+  .panel{
+    border:1px solid var(--line);
+    background:var(--panel);
+    border-radius:4px;
+    padding:16px;
+    margin-bottom:14px;
+  }
+  .panel-title{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--cyan);
+    margin:0 0 12px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .panel-title::after{
+    content:"";
+    flex:1;
+    height:1px;
+    background:var(--line);
+  }
+
+  label{
+    display:block;
+    font-size:12.5px;
+    color:var(--text-dim);
+    margin-bottom:5px;
+  }
+  .field{margin-bottom:12px;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+  @media (max-width:520px){ .row3{grid-template-columns:1fr 1fr;} }
+
+  input[type=number], select{
+    width:100%;
+    background:var(--bg-deep);
+    border:1px solid var(--line);
+    color:var(--text);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:15px;
+    padding:9px 10px;
+    border-radius:3px;
+    outline:none;
+    transition:border-color .15s;
+  }
+  input[type=number]:focus, select:focus{border-color:var(--cyan);}
+  input[type=number]::-webkit-inner-spin-button{opacity:0.6;}
+
+  .toggle-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:14px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .switch{
+    width:38px; height:20px;
+    background:var(--bg-deep);
+    border:1px solid var(--line);
+    border-radius:999px;
+    position:relative;
+    flex-shrink:0;
+    transition:background .15s;
+  }
+  .switch.on{background:var(--line-soft); border-color:var(--cyan);}
+  .switch-knob{
+    position:absolute; top:2px; left:2px;
+    width:14px; height:14px;
+    background:var(--text-dim);
+    border-radius:50%;
+    transition:transform .15s, background .15s;
+  }
+  .switch.on .switch-knob{transform:translateX(18px); background:var(--cyan);}
+  .toggle-label{font-size:13px; color:var(--text);}
+
+  .subfields{
+    padding-top:10px;
+    margin-top:2px;
+    border-top:1px dashed var(--line-soft);
+  }
+
+  /* seam list */
+  .seam-row{
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    gap:10px;
+    align-items:center;
+    padding:10px;
+    background:var(--bg-deep);
+    border:1px solid var(--line-soft);
+    border-radius:3px;
+    margin-bottom:8px;
+  }
+  .seam-tag{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--bg-deep);
+    background:var(--amber);
+    padding:4px 8px;
+    border-radius:3px;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .seam-remove{
+    background:none;
+    border:1px solid var(--line);
+    color:var(--text-faint);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    width:28px; height:28px;
+    border-radius:3px;
+    cursor:pointer;
+    transition:.15s;
+  }
+  .seam-remove:hover{border-color:var(--danger); color:var(--danger);}
+  .add-seam{
+    width:100%;
+    background:none;
+    border:1px dashed var(--line);
+    color:var(--cyan);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    padding:9px;
+    border-radius:3px;
+    cursor:pointer;
+    transition:.15s;
+  }
+  .add-seam:hover{border-color:var(--cyan); background:rgba(126,200,227,0.05);}
+
+  select.clockpos{
+    font-family:'IBM Plex Mono',monospace;
+  }
+
+  /* diagram */
+  .diagram-panel{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:10px;
+  }
+  svg{max-width:100%; height:auto;}
+
+  /* results */
+  .result-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:10px;
+  }
+  .result-card{
+    background:var(--bg-deep);
+    border:1px solid var(--line-soft);
+    border-left:3px solid var(--amber);
+    border-radius:3px;
+    padding:12px 14px;
+  }
+  .result-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:8px;
+  }
+  .result-head .tag{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:13px;
+    color:var(--amber);
+    font-weight:600;
+  }
+  .result-head .angle{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--text-dim);
+  }
+  .result-metrics{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .metric{}
+  .metric .k{
+    font-size:10.5px;
+    color:var(--text-faint);
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    margin-bottom:2px;
+  }
+  .metric .v{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:16px;
+    color:var(--text);
+    font-weight:600;
+  }
+  .metric .v .unit{
+    font-size:11px;
+    color:var(--text-dim);
+    font-weight:400;
+    margin-left:2px;
+  }
+
+  .summary-strip{
+    display:flex;
+    flex-wrap:wrap;
+    gap:18px;
+    padding:12px 14px;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:4px;
+    margin-bottom:14px;
+  }
+  .summary-item .k{
+    font-size:10.5px;
+    color:var(--text-faint);
+    text-transform:uppercase;
+    letter-spacing:.08em;
+  }
+  .summary-item .v{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:17px;
+    color:var(--cyan-bright);
+    font-weight:600;
+  }
+
+  .note{
+    font-size:12px;
+    color:var(--text-faint);
+    line-height:1.6;
+    padding-top:6px;
+  }
+  .note b{color:var(--text-dim);}
+
+  footer{
+    text-align:center;
+    font-size:11px;
+    color:var(--text-faint);
+    margin-top:20px;
+    font-family:'IBM Plex Mono',monospace;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="titleblock">
+    <div class="titleblock-inner">
+      <div class="eyebrow">HVAC Field Tool — Duct / Pipe Insulation Cladding</div>
+      <h1>Seam Position Calculator</h1>
+      <div class="sub">คำนวณตำแหน่งตะเข็บ (longitudinal seam) ของ Cladding หุ้มฉนวนท่อ/ดักท์ ตามระบบตำแหน่งนาฬิกา (Clock Position) — ระบุเป็น "บ่าย 2", "บ่าย 3" ฯลฯ แล้วดูระยะพันรอบวงจากจุดอ้างอิงด้านบน (12 นาฬิกา) เพื่อไปทำเครื่องหมายตัดแผ่นหน้างาน</div>
+      <div class="drawing-no">
+        <span>REF: CLAD-SEAM-CALC</span>
+        <span>METHOD: CLOCK POSITION / ARC LENGTH</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">1 — ขนาดเส้นผ่านศูนย์กลางสำเร็จ (Finished OD)</div>
+
+    <div class="toggle-row" id="toggleRow">
+      <div class="switch" id="modeSwitch"><div class="switch-knob"></div></div>
+      <div class="toggle-label">คำนวณ OD จากท่อ + ฉนวน + Cladding (แทนที่จะกรอกโดยตรง)</div>
+    </div>
+
+    <div id="directMode" class="field">
+      <label>เส้นผ่านศูนย์กลางภายนอกสำเร็จ (Finished Outer Diameter) — มม.</label>
+      <input type="number" id="odDirect" value="219" min="1" step="0.1">
+    </div>
+
+    <div id="buildMode" class="subfields" style="display:none;">
+      <div class="row3">
+        <div class="field">
+          <label>เส้นผ่านศูนย์กลางท่อ/ดักท์ (mm)</label>
+          <input type="number" id="pipeOD" value="168.3" min="1" step="0.1">
+        </div>
+        <div class="field">
+          <label>ความหนาฉนวน (mm)</label>
+          <input type="number" id="insThk" value="50" min="0" step="1">
+        </div>
+        <div class="field">
+          <label>ความหนา Cladding (mm)</label>
+          <input type="number" id="cladThk" value="0.6" min="0" step="0.1">
+        </div>
+      </div>
+      <div class="note">Finished OD = ท่อ + 2×(ฉนวน + Cladding) — <span id="buildResult">-</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">2 — ตำแหน่งตะเข็บ (Seam Clock Positions)</div>
+    <div id="seamList"></div>
+    <button class="add-seam" id="addSeamBtn">+ เพิ่มตะเข็บ</button>
+    <div class="note">ระบบนับตำแหน่งนาฬิกาตามเข็มนาฬิกา โดย <b>12:00 = จุดบนสุดของท่อ (Top center line)</b> ใช้เป็นจุดอ้างอิงเริ่มพันสายวัด</div>
+  </div>
+
+  <div class="panel diagram-panel">
+    <div class="panel-title" style="width:100%;">3 — แผนผังหน้าตัด (Cross-Section Diagram)</div>
+    <div id="svgHolder"></div>
+  </div>
+
+  <div class="summary-strip" id="summaryStrip"></div>
+
+  <div class="panel">
+    <div class="panel-title">4 — ระยะพันตะเข็บ (Arc Length per Seam)</div>
+    <div class="result-grid" id="resultGrid"></div>
+    <div class="note">
+      <b>วิธีใช้หน้างาน:</b> พันสายวัด (tape) รอบฉนวน/Cladding เริ่มจากเส้น 12 นาฬิกา (บนสุด) แล้ววัดตามเข็มนาฬิกาเป็นระยะ "CW จาก 12:00" เพื่อทำเครื่องหมายตำแหน่งตะเข็บ — หรือวัดทวนเข็มจากอีกฝั่งตามค่า "CCW จาก 12:00" หากเริ่มพันจากอีกทาง
+    </div>
+  </div>
+
+  <footer>CLADDING SEAM POSITION CALCULATOR · FIELD REFERENCE ONLY — ตรวจสอบกับ spec/drawing ของโครงการก่อนใช้งานจริง</footer>
+</div>
+
+<script>
+const PI = Math.PI;
+let seams = [2, 3]; // default บ่าย 2, บ่าย 3
+
+const clockOptions = [];
+for(let h=0; h<=12; h+=0.5){
+  clockOptions.push(h);
+}
+
+function clockLabel(v){
+  if(v===0 || v===12) return "12:00 (บน)";
+  if(v===6) return "6:00 (ล่าง)";
+  if(v===3) return "3:00 (ขวา)";
+  if(v===9) return "9:00 (ซ้าย)";
+  const h = Math.floor(v);
+  const m = (v - h) === 0.5 ? "30" : "00";
+  return h + ":" + m;
+}
+
+function getOD(){
+  const direct = document.getElementById('modeSwitch').classList.contains('on');
+  if(!direct){
+    return parseFloat(document.getElementById('odDirect').value) || 0;
+  } else {
+    const p = parseFloat(document.getElementById('pipeOD').value) || 0;
+    const ins = parseFloat(document.getElementById('insThk').value) || 0;
+    const clad = parseFloat(document.getElementById('cladThk').value) || 0;
+    return p + 2*(ins + clad);
+  }
+}
+
+function renderSeamList(){
+  const list = document.getElementById('seamList');
+  list.innerHTML = '';
+  seams.forEach((val, i)=>{
+    const row = document.createElement('div');
+    row.className = 'seam-row';
+    const tag = document.createElement('div');
+    tag.className = 'seam-tag';
+    tag.textContent = 'SEAM ' + (i+1);
+    const sel = document.createElement('select');
+    sel.className = 'clockpos';
+    clockOptions.forEach(v=>{
+      const opt = document.createElement('option');
+      opt.value = v;
+      opt.textContent = clockLabel(v) + '  (บ่าย ' + v + ')';
+      if(v === val) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', (e)=>{
+      seams[i] = parseFloat(e.target.value);
+      compute();
+    });
+    const rm = document.createElement('button');
+    rm.className = 'seam-remove';
+    rm.textContent = '×';
+    rm.addEventListener('click', ()=>{
+      if(seams.length <= 1) return;
+      seams.splice(i,1);
+      renderSeamList();
+      compute();
+    });
+    row.appendChild(tag);
+    row.appendChild(sel);
+    row.appendChild(rm);
+    list.appendChild(row);
+  });
+}
+
+function buildSVG(od, results){
+  const size = 380;
+  const cx = size/2, cy = size/2;
+  const rPipe = 120;
+  const rTick = 145;
+  const rLabel = 165;
+
+  let ticks = '';
+  for(let h=0; h<12; h++){
+    const ang = h*30 - 90; // -90 so 0 => top... wait 12 at top means angle -90? let's define 0deg = top, clockwise positive
+    const rad = (h*30) * PI/180 - PI/2;
+    const x1 = cx + Math.cos(rad)*(rPipe+4);
+    const y1 = cy + Math.sin(rad)*(rPipe+4);
+    const x2 = cx + Math.cos(rad)*rTick;
+    const y2 = cy + Math.sin(rad)*rTick;
+    const major = (h%3===0);
+    ticks += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${major? 'var(--cyan)':'var(--line)'}" stroke-width="${major?1.6:1}"/>`;
+    const lx = cx + Math.cos(rad)*rLabel;
+    const ly = cy + Math.sin(rad)*rLabel;
+    const hourNum = h===0?12:h;
+    ticks += `<text x="${lx}" y="${ly}" fill="var(--text-faint)" font-size="10" font-family="IBM Plex Mono, monospace" text-anchor="middle" dominant-baseline="middle">${hourNum}</text>`;
+  }
+
+  let seamMarks = '';
+  let arcs = '';
+  const colors = ['#ffb454','#7ec8e3','#ff7a7a','#8ee6b0','#d99bff'];
+  results.forEach((r, i)=>{
+    const color = colors[i % colors.length];
+    const rad = (r.pos*30) * PI/180 - PI/2;
+    const x = cx + Math.cos(rad)*rPipe;
+    const y = cy + Math.sin(rad)*rPipe;
+    seamMarks += `<circle cx="${x}" cy="${y}" r="6" fill="${color}" stroke="var(--bg-deep)" stroke-width="1.5"/>`;
+    seamMarks += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="${color}" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>`;
+
+    // arc from top (0 deg) to seam angle, drawn slightly inside pipe radius
+    const rArc = 95 - i*14;
+    const startRad = -PI/2;
+    const endRad = rad;
+    const largeArc = (r.pos*30) > 180 ? 1 : 0;
+    const sx = cx + Math.cos(startRad)*rArc;
+    const sy = cy + Math.sin(startRad)*rArc;
+    const ex = cx + Math.cos(endRad)*rArc;
+    const ey = cy + Math.sin(endRad)*rArc;
+    if(r.pos !== 0 && r.pos !== 12){
+      arcs += `<path d="M ${sx} ${sy} A ${rArc} ${rArc} 0 ${largeArc} 1 ${ex} ${ey}" fill="none" stroke="${color}" stroke-width="2"/>`;
+    }
+  });
+
+  return `
+  <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="background:var(--bg-deep); border:1px solid var(--line); border-radius:6px;">
+    <defs>
+      <style>
+        text{font-family:'IBM Plex Mono', monospace;}
+      </style>
+    </defs>
+    <circle cx="${cx}" cy="${cy}" r="${rPipe}" fill="none" stroke="var(--line)" stroke-width="1"/>
+    <circle cx="${cx}" cy="${cy}" r="${rPipe-14}" fill="none" stroke="var(--line-soft)" stroke-width="1" stroke-dasharray="2,4"/>
+    ${ticks}
+    <!-- top reference marker -->
+    <circle cx="${cx}" cy="${cy-rPipe}" r="4" fill="var(--cyan-bright)"/>
+    <text x="${cx}" y="${cy-rPipe-14}" fill="var(--cyan-bright)" font-size="11" text-anchor="middle" font-weight="600">12:00 REF</text>
+    ${arcs}
+    ${seamMarks}
+    <text x="${cx}" y="${cy+4}" fill="var(--text-dim)" font-size="11" text-anchor="middle">OD ${od.toFixed(1)} mm</text>
+  </svg>`;
+}
+
+function compute(){
+  const od = getOD();
+  const circ = PI * od;
+
+  // update build mode readout
+  const p = parseFloat(document.getElementById('pipeOD').value) || 0;
+  const ins = parseFloat(document.getElementById('insThk').value) || 0;
+  const clad = parseFloat(document.getElementById('cladThk').value) || 0;
+  document.getElementById('buildResult').textContent =
+    `${p} + 2×(${ins}+${clad}) = ${(p+2*(ins+clad)).toFixed(1)} mm`;
+
+  const results = seams.map(pos=>{
+    const angle = (pos % 12) * 30;
+    const cw = (angle/360)*circ;
+    const ccw = circ - cw;
+    // chord length (straight line) as secondary reference
+    const rad = angle*PI/180;
+    const radius = od/2;
+    const chord = 2*radius*Math.sin(rad/2);
+    return {pos, angle, cw, ccw, chord};
+  });
+
+  // summary strip
+  const summary = document.getElementById('summaryStrip');
+  summary.innerHTML = `
+    <div class="summary-item"><div class="k">Finished OD</div><div class="v">${od.toFixed(1)} mm</div></div>
+    <div class="summary-item"><div class="k">เส้นรอบวง (Circumference)</div><div class="v">${circ.toFixed(1)} mm</div></div>
+    <div class="summary-item"><div class="k">จำนวนตะเข็บ</div><div class="v">${seams.length}</div></div>
+  `;
+
+  // result cards
+  const grid = document.getElementById('resultGrid');
+  grid.innerHTML = '';
+  results.forEach((r, i)=>{
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.innerHTML = `
+      <div class="result-head">
+        <div class="tag">SEAM ${i+1} — ตำแหน่ง ${clockLabel(r.pos)} (บ่าย ${r.pos})</div>
+        <div class="angle">${r.angle.toFixed(1)}° CW จาก 12:00</div>
+      </div>
+      <div class="result-metrics">
+        <div class="metric"><div class="k">ระยะ CW จาก 12:00</div><div class="v">${r.cw.toFixed(1)}<span class="unit">mm</span></div></div>
+        <div class="metric"><div class="k">ระยะ CCW จาก 12:00</div><div class="v">${r.ccw.toFixed(1)}<span class="unit">mm</span></div></div>
+        <div class="metric"><div class="k">Chord (เส้นตรง)</div><div class="v">${r.chord.toFixed(1)}<span class="unit">mm</span></div></div>
+        <div class="metric"><div class="k">มุมจากบนสุด</div><div class="v">${r.angle.toFixed(1)}<span class="unit">°</span></div></div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+
+  document.getElementById('svgHolder').innerHTML = buildSVG(od, results);
+}
+
+// wire up mode toggle
+const toggleRow = document.getElementById('toggleRow');
+const modeSwitch = document.getElementById('modeSwitch');
+toggleRow.addEventListener('click', ()=>{
+  modeSwitch.classList.toggle('on');
+  const direct = modeSwitch.classList.contains('on');
+  document.getElementById('directMode').style.display = direct ? 'none' : 'block';
+  document.getElementById('buildMode').style.display = direct ? 'block' : 'none';
+  compute();
+});
+
+document.getElementById('odDirect').addEventListener('input', compute);
+document.getElementById('pipeOD').addEventListener('input', compute);
+document.getElementById('insThk').addEventListener('input', compute);
+document.getElementById('cladThk').addEventListener('input', compute);
+
+document.getElementById('addSeamBtn').addEventListener('click', ()=>{
+  seams.push(4);
+  renderSeamList();
+  compute();
+});
+
+renderSeamList();
+compute();
+</script>
+</body>
+</html>
